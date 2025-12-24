@@ -1,5 +1,6 @@
 import os
 import sys
+import datetime
 import time
 import pathlib
 from owlready2 import *
@@ -132,6 +133,21 @@ with onto:
         range = [int]
         python_name = "has_semester"
 
+    class HasStartTime(DataProperty, FunctionalProperty):
+        domain = [RoomBooking]
+        range = [datetime.datetime]
+        python_name = "has_start_time"
+
+    class HasEndTime(DataProperty, FunctionalProperty):
+        domain = [RoomBooking]
+        range = [datetime.datetime]
+        python_name = "has_end_time"
+
+    class BookedBy(ObjectProperty, FunctionalProperty):
+        domain = [RoomBooking]
+        range = [Teacher]
+        python_name = "booked_by"
+
     # INFERRED CLASSES (First-Order Logic)
 
     class OverBookedRoom(Room):
@@ -162,7 +178,7 @@ with onto:
 def save():
     with onto:
         try:
-            sync_reasoner(onto, infer_property_values=True)
+            sync_reasoner(onto, infer_property_values=True, debug=False)
             onto.save(file=ONTOLOGY_FILE, format="rdfxml")
             print("[System] Data reasoned and saved successfully.")
         except Exception as e:

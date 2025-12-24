@@ -1,13 +1,18 @@
 import sys
+from agents.agent_room_booking import BookingAgent
 from ontology.dei_department import *
+from datetime import datetime, timedelta, date
+
+# Initialization of Agent 1 (room booking manager)
+agent = BookingAgent(onto)
 
 def main_menu():
     """Displays the primary navigation menu."""
     while True:
-        print("\n===== DEI Room Management System =====\n")
-        print("1. Administrative Management\n")
-        print("2. Live Status & Queries (Ontology Reasoning)")
-        print("3. Room Bookings & Ad-hoc Requests (Agent 1)")
+        print("\n====== | DEI Room Management System | ======\n")
+        print("1. Administrative Management")
+        print("2. Live Status & Queries (????)")
+        print("3. Room Bookings\n")
         print("4. Semester Planning (PDDL)")
         print("5. System Maintenance (Agent 2)")
         print("0. Exit")
@@ -26,7 +31,7 @@ def main_menu():
             maintenance_menu()
         elif choice == '0':
             print("Exiting system. Goodbye!")
-            sys.exit()
+            sys.exit(0)
         else:
             print("Invalid option. Please try again.")
 
@@ -52,7 +57,7 @@ def management_menu():
 
 def room_mgmt():
     print("\n[Room Management]\n")
-    print("1. Add Room\n2. List Rooms\n0. Exit\n")
+    print("1. Add Room\n2. List Rooms\n0. Back\n")
     c = input("Choice: ")
     if c == '1':
         # 1. Validate Name (must not be empty)
@@ -109,12 +114,12 @@ def room_mgmt():
     elif c == '0':
         management_menu()
     else:
-        print("Invalid choice. Choose option 1, 2 or 0 to exit")
+        print("Invalid choice. Choose option 1, 2 or 0 to Back")
         room_mgmt()
 
 def teacher_mgmt():
     print("\n[Teacher Management]\n")
-    print("1. Add Teacher\n2. List Teachers\n0. Exit\n")
+    print("1. Add Teacher\n2. List Teachers\n0. Back\n")
     c = input("Choice: ")
 
     if c == '1':
@@ -192,7 +197,7 @@ def teacher_mgmt():
 
 def student_mgmt():
     print("\n[Student Management]\n")
-    print("1. Add Student\n2. List Students\n0. Exit\n")
+    print("1. Add Student\n2. List Students\n0. Back\n")
     c = input("Choice: ")
     if c == '1':
         # 1. Validate Name (must not be empty)
@@ -277,7 +282,7 @@ def student_mgmt():
 
 def course_mgmt():
     print("\n[Course Management]\n")
-    print("1. Add Course\n2. Course List\n0. Exit\n")
+    print("1. Add Course\n2. Course List\n0. Back\n")
     c = input("Choice: ")
     if c == '1':
         # 1. Validate Name (must not be empty)
@@ -337,12 +342,12 @@ def course_mgmt():
     elif c == '0':
         management_menu()
     else:
-        print("Invalid choice. Choose option 1, 2 or 0 to exit")
+        print("Invalid choice. Choose option 1, 2 or 0 to Back")
         course_mgmt()
 
 def class_mgmt():
     print("\n[Class Management]\n")
-    print("1. Add Class\n2. Class List\n0. Exit\n")
+    print("1. Add Class\n2. Class List\n0. Back\n")
     c = input("Choice: ")
     
     if c == '1':
@@ -389,7 +394,7 @@ def queries_menu():
     
     while True:
         print("Nothing yet...")
-        choice = input("\nExit pressing 0: ")
+        choice = input("\nBack pressing 0: ")
         if choice == '0':
             break
 
@@ -413,13 +418,199 @@ def queries_menu():
             break
 
 def booking_menu():
-    """Interface for Agent 1 to handle new requests."""
-    print("\n--- Room Bookings (Agent 1) ---")
-    print("1. New Lecture Booking Request")
-    print("2. Emergency Room Change (Equipment Failure)")
-    print("3. Back to Main Menu")
-    # This will trigger Agent 1's logic to search and assign rooms
-    input("\n[Placeholder] Press Enter to return...")
+    while True:
+        print("\n--- Room Bookings ---")
+        
+        # Identity Check
+        raw_input = input("Verify Teacher ID to proceed or '0' Return: ")
+        if raw_input == '0':
+            return
+        
+        try:
+            prof_id = int(raw_input)
+        except ValueError:
+            print("Invalid ID format.")
+            continue
+
+        prof = onto.search_one(type=Teacher, has_id=prof_id)
+        
+        if not prof:
+            print("\nAccess Denied: Only registered Teachers/Professors can book.")
+            return
+
+        print(f"\nWelcome, {prof.has_name}")
+        print("\n1. New Booking\n2. View Room Schedule\n3. Emergency Room Changes\n0. Back\n")
+        choice = input("Choice: ")
+
+        if choice == '1':
+            # 1. Course/Capacity Logic
+            is_course = input("Is this for a Course? (y/n): ").lower() == 'y'
+            if is_course:
+                c_name = input("Enter Course Code: ").upper()
+                course_obj = onto.search_one(type=Course, has_name=c_name)
+                if not course_obj:
+                    return print("Course not found.")
+                cap_needed = course_obj.required_capacity
+                print(f"Automatic Capacity required: {cap_needed}")
+            else:
+                cap_needed = int(input("Required Capacity: "))
+                course_obj = None
+
+            # 2. Validate starting date
+            while True:
+                try:
+                    start_date_str = input("Start Date (YYYY-MM-DD): ")
+                    start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+                    
+                    # Validation: Must be at least tomorrow
+                    if start_date <= date.today():
+                        print("Error: Bookings must be made at least one day in advance.")
+                        continue
+                    
+                    # Validation: Not a weekend
+                    if start_date.weekday() >= 5:
+                        print("Error: Starting date cannot be a weekend.")
+                        continue
+                    break
+                except ValueError:
+                    print("Invalid format. Use YYYY-MM-DD.")
+
+            # 3. Validate ending Date
+            while True:
+                try:
+                    end_date_str = input("End Date (YYYY-MM-DD) [Press Enter if same as start]: ")
+                    end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date() if end_date_str else start_date
+                    if end_date < start_date:
+                        print("Error: End date must be equal or greater then start date")
+                        continue
+                    break
+                except ValueError:
+                    print("Invalid format. Use YYYY-MM-DD.")
+
+            # 4. Validate Hour
+            while True:
+                try:
+                    start_hour = int(input("Start Hour (9-19): "))
+                    if start_hour > 8 and start_hour < 20 and start_hour != 13:
+                        break
+                    print("Error: Booking start hour invalid.")
+                except ValueError:
+                    print("Error: Please enter a valid hour number (9-19)")
+            
+            # 5. Validate slot duration
+            while True:
+                try:
+                    num_hours = int(input("Duration in Hours (max 4h): "))
+                    if num_hours > 0 and num_hours < 5:
+                        break
+                    print("Error: Slots must have at least 1h duration and at most 4h duration")
+                except ValueError:
+                    print("Error: Please enter a valid hour number (9-19)")
+            
+            # 6. Validates projector
+            while True:
+                needs_proj = input("Require Projector? (y/n): ").lower().strip()
+                if needs_proj in ['y', 'n']:
+                    needs_proj = (needs_proj == 'y')
+                    break
+                print("Error: Please enter only 'y' for yes or 'n' for no.")
+
+            # Get available specific slots
+            slots = agent.get_available_slots_in_interval(cap_needed, start_date, end_date, start_hour, num_hours, needs_proj)
+
+            if not slots:
+                print("\n[Agent 1]: No available slots found in that interval.")
+            else:
+                print(f"\n[Agent 1] Found {len(slots)} available slots:")
+                for i, s in enumerate(slots):
+                    print(f"{i+1}. Date: {s['date']} | Room: {s['room'].has_name} (Cap: {s['room'].has_capacity})")
+                
+                sel = input("\nSelect one slot to book (number) or 'c' to cancel: ")
+                if sel.isdigit() and int(sel) <= len(slots):
+                    chosen = slots[int(sel)-1]
+                    agent.create_booking(prof, chosen['room'], chosen['start'], chosen['end'],
+                                        "Course" if is_course else "Meeting", course_obj)
+                    save()
+                    print(f"Success: {chosen['room'].has_name} booked for {chosen['date']}.")
+
+        elif choice == '2':
+            room_name = input("Enter Room Name to check: ")
+            room = get_room(room_name)
+
+            while True:
+                day_str = input("Enter Date (YYYY-MM-DD): ")
+                try:
+                    target_date = datetime.strptime(day_str, "%Y-%m-%d").date()
+                    break
+                except ValueError:
+                    print("Invalid format. Use YYYY-MM-DD.")
+            ###
+
+            if not room:
+                print(f"Error: Room '{room_name}' does not exist.")
+            else:
+                # Fetch and sort bookings by start time
+                bookings = [b for b in onto.search(type=RoomBooking, booked_in_room=room) if b.has_start_time.date() == target_date]
+                sorted_bookings = sorted(bookings, key=lambda x: x.has_start_time)
+
+                print(f"\n" + "="*40)
+                print(f"DEI SCHEDULE [{target_date}]: {room.has_name}")
+                print(f"Capacity: {room.has_capacity} | Projector: {'Yes' if onto.Projector in room.has_equipment else 'No'}")
+                print("="*40)
+
+                if not sorted_bookings:
+                    print("No bookings found for this room.")
+                else:
+                    current_date = None
+                    for b in sorted_bookings:
+                        # Print a date header whenever the day changes
+                        booking_date = b.has_start_time.strftime('%Y-%m-%d')
+                        if booking_date != current_date:
+                            print(f"\n--- {booking_date} ---")
+                            current_date = booking_date
+                        
+                        # Formatting the hourly block display
+                        start = b.has_start_time.strftime('%H:%M')
+                        end = b.has_end_time.strftime('%H:%M')
+                        print(f"  {start} - {end} | {b.has_name} (by {b.booked_by.has_name})")
+
+                print("="*40)
+
+            # ======================================================================
+            # TODO Change logic: this service must only show what changed.
+            # Agent 2 will activate the emergency relocation service automatically
+            # ======================================================================
+
+        elif choice == '3':
+            print("\n--- Emergency Relocation Service ---")
+            # List bookings made by this professor today or in the future
+            my_bookings = onto.search(type=RoomBooking, booked_by=prof)
+            if not my_bookings:
+                print("You have no active bookings moved.")
+            else:
+                for i, b in enumerate(my_bookings):
+                    print(f"{i+1}. {b.has_name} in {b.booked_in_room.has_name} ({b.has_start_time.strftime('%H:%M')})")
+                
+                idx = input("Select booking to relocate (or 'c'): ")
+                if idx.isdigit() and int(idx) <= len(my_bookings):
+                    target_booking = my_bookings[int(idx)-1]
+                    
+                    # Simulate reporting the projector as broken in the ontology
+                    current_room = target_booking.booked_in_room
+                    projector = onto.search_one(has_name="Standard Projector")
+                    if projector in current_room.has_equipment:
+                        projector.is_broken = True # Trigger for Agent 2 later
+                    
+                    # Agent 1 attempts relocation
+                    success, msg = agent.emergency_relocate(target_booking)
+                    if success:
+                        save()
+                        print(f"SUCCESS: {msg}")
+                    else:
+                        print(f"FAILED: {msg}")
+
+        elif choice == '0':
+            return
 
 def planning_menu():
     """Triggers the PDDL Automated Planners."""
