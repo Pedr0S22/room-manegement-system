@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import pathlib
 from owlready2 import *
@@ -159,17 +160,14 @@ with onto:
 # --- VALIDATION & PERSISTENCE HELPER FUNCTIONS ---
 
 def save():
-    onto.save(file=ONTOLOGY_FILE, format="rdfxml")
-
-def run_reasoner():
-    print("\n[System] Synchronizing reasoner...")
-    try:
-        sync_reasoner(onto, infer_property_values=True)
-        save()
-        print("[System] Reasoning complete. Inferred classes updated.")
-    except Exception as e:
-        print(f"[Error] Reasoning failed: {e}")
-        print("Ensure Java is installed and owlready2.JAVA_EXE is correctly set.")
+    with onto:
+        try:
+            sync_reasoner(onto, infer_property_values=True)
+            onto.save(file=ONTOLOGY_FILE, format="rdfxml")
+            print("[System] Data reasoned and saved successfully.")
+        except Exception as e:
+            print(f"[Warning] Reasoner found an inconsistency: {e}")
+            onto.save(file=ONTOLOGY_FILE, format="rdfxml")
 
 def get_room(name):
     return onto.search_one(type=Room, has_name=name)

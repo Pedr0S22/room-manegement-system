@@ -81,10 +81,31 @@ def room_mgmt():
             print("Error: Please enter only 'y' for yes or 'n' for no.")
         _ , msg = add_room(name, cap, proj)
         print(msg)
+        room_mgmt()
     elif c == '2':
-        for r in onto.Room.instances():
-            eq = "Projector" if onto.Projector in r.has_equipment else "None"
-            print(f"- {r.has_name} (Cap: {r.has_capacity}, Equipment: {eq})")
+        rooms = list(onto.Room.instances())
+        
+        if not rooms:
+            print("\nNo rooms found in the department.")
+        else:
+            print("\n--- List of Registered Rooms ---")
+            for r in rooms:
+                # Check for equipment
+                eq_list = [e.has_name for e in r.has_equipment]
+                equipment_str = ", ".join(eq_list) if eq_list else "None"
+                
+                print(f"Room: {r.has_name}")
+                print(f" - Capacity: {r.has_capacity}")
+                print(f" - Equipment: {equipment_str}")
+                print(f" - Accumulated Usage: {r.accumulated_usage} hours")
+                
+                # Intelligence Hint: Highlight if it needs attention
+                if r in onto.RoomNeedsAttention.instances():
+                    print("STATUS: Requires Maintenance/Cleaning")
+                
+                print("-" * 20)
+        
+        room_mgmt()
     elif c == '0':
         management_menu()
     else:
@@ -132,6 +153,7 @@ def teacher_mgmt():
                 print(f"Error: The following courses do not exist: {', '.join(missing_courses)}")
                 print("Note: Courses must be added via 'Course Management' first.")
                 valid_format = False
+                teacher_mgmt()
             else:
                 valid_format = True
 
@@ -140,10 +162,28 @@ def teacher_mgmt():
                 break
         _ , msg = add_teacher(name, id_num, courses)
         print(msg)
+        teacher_mgmt()
     elif c == '2':
-        for t in onto.Teacher.instances():
-            c_list = [c.has_name for c in t.teaches]
-            print(f"ID {t.has_id}: {t.has_name} | Teaches: {c_list}")
+        teachers = list(onto.Teacher.instances())
+        
+        if not teachers:
+            print("\nNo teachers found in the department.")
+        else:
+            print("\n--- List of Registered Teachers ---")
+            for t in teachers:
+                # Extract course details (Name and Year/Semester)
+                course_details = [f"{c.has_name} (Y{c.has_year}S{c.has_semester})" for c in t.teaches]
+                
+                print(f"ID: {t.has_id}")
+                print(f" - Name: {t.has_name}")
+                print(f" - Courses Taught: {', '.join(course_details) if course_details else 'None Assigned'}")
+                
+                # Intelligence Hint: Check for Overloaded status (Inferred Class)
+                if t in onto.OverloadedTeacher.instances():
+                    print(" ! STATUS: Overloaded (Teaches > 3 Courses)")
+                
+                print("-" * 20)
+        teacher_mgmt()
     elif c == '0':
         management_menu()
     else:
@@ -211,6 +251,7 @@ def student_mgmt():
                 break
         _ , msg = add_student(name, id_num, cls, yr, [x.strip() for x in courses])
         print(msg)
+        student_mgmt()
     elif c == '2':
         students = list(onto.Student.instances())
         
@@ -227,7 +268,7 @@ def student_mgmt():
                 print(f" - Enrolled In: {', '.join(course_names) if course_names else 'None'}")
                 print("-" * 20)
         
-        management_menu()
+        student_mgmt()
     elif c == '0':
         management_menu()
     else:
@@ -236,7 +277,7 @@ def student_mgmt():
 
 def course_mgmt():
     print("\n[Course Management]\n")
-    print("1. Add Course\n2. List\n0. Exit\n")
+    print("1. Add Course\n2. Course List\n0. Exit\n")
     c = input("Choice: ")
     if c == '1':
         # 1. Validate Name (must not be empty)
@@ -283,6 +324,7 @@ def course_mgmt():
 
         _ , msg = add_course(name, year, semester, capacity)
         print(msg)
+        course_mgmt()
     elif c == '2':
         courses = list(onto.Course.instances())
         if not courses:
@@ -300,13 +342,13 @@ def course_mgmt():
 
 def class_mgmt():
     print("\n[Class Management]\n")
-    print("1. Add Class\n2. List\n0. Exit\n")
+    print("1. Add Class\n2. Class List\n0. Exit\n")
     c = input("Choice: ")
     
     if c == '1':
         # 1. Validate Name
         while True:
-            name = input("Class Name (e.g., LEI-A): ").strip().upper()
+            name = input("Class Name: ").strip().upper()
             if name: break
             print("Error: Class name cannot be empty.")
 
@@ -339,7 +381,7 @@ def class_mgmt():
                 print(f" - Registered Students: {', '.join(student_names) if student_names else 'None'}")
                 print("-" * 30)
         
-        management_menu()
+        class_mgmt()
     elif c == '0':
         management_menu()
 

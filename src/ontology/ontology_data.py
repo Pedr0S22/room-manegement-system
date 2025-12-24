@@ -1,13 +1,28 @@
-from ontology.dei_department import *
+import os
+import pathlib
+from owlready2 import *
+from dei_department import *
+
+BASE_PATH = pathlib.Path(__file__).parent.resolve()
+ONTOLOGY_FILE = str(BASE_PATH / "dei_room_management.owl")
+
+owlready2.JAVA_EXE = "java"
+
+if os.path.exists(ONTOLOGY_FILE):
+    onto = get_ontology(ONTOLOGY_FILE).load()
+    print(f"Loaded existing ontology from {ONTOLOGY_FILE}")
+else:
+    onto = get_ontology("http://example.org/dei_room_management.owl")
+    print("Created new ontology.")
 
 def populate_system():
     print("=== Initializing DEI Data Population ===\n")
 
     # 1. Add Courses (Name, Year, Student Capacity)
     print("Adding Courses...")
-    add_course("CRP", 3, 60)
-    add_course("IA", 3, 100)
-    add_course("PDS", 2, 80)
+    add_course("CRP", 3, 1, 60)
+    add_course("IA", 2, 2, 100)
+    add_course("PDS", 2, 1, 80)
     # TODO: Add more courses for years 1, 2, and 3
     
     # 2. Add Academic Classes (Name, Year)
@@ -42,15 +57,15 @@ def populate_system():
 
     # 5. Add Students (Name, ID, Class Name, Year, List of Course Names)
     print("Adding Students...")
-    add_student("Joao Silva", 2021001, "LEI-A", 3, ["CRP", "IA"])
-    add_student("Maria Santos", 2021002, "LEI-A", 3, ["CRP"])
-    add_student("Tiago Ferreira", 2022001, "LDCT-A", 2, ["PDS"])
+    add_student("Joao Silva", 2021001, "LEI", 3, ["CRP", "IA"])
+    add_student("Maria Santos", 2021002, "LEI", 3, ["CRP"])
+    add_student("Tiago Ferreira", 2022001, "LDM", 2, ["PDS"])
     # TODO: Add more students
 
     # 6. Finalize
     print("\nData population complete.")
     print("Running reasoner to verify inferred classes...")
-    run_reasoner()
+    save()
     
     # Check for anomalies immediately
     attention_rooms = onto.search(type=RoomNeedsAttention)
