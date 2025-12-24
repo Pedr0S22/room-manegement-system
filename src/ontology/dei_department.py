@@ -28,6 +28,9 @@ with onto:
 
     class Course(Thing):
         pass
+
+    class AcademicClass(Thing):
+        pass
     
     # Person related classes
     class Person(Thing):
@@ -74,6 +77,9 @@ with onto:
     class EnrolledIn(Student >> Course):
         python_name = "enrolled_in"
 
+    class BelongsToClass(Student >> AcademicClass, FunctionalProperty):
+        python_name = "belongs_to_class"
+
     # DATA PROPERTIES
 
     class HasId(DataProperty, FunctionalProperty):
@@ -92,7 +98,7 @@ with onto:
         python_name = "has_capacity"
 
     class RequiredCapacity(DataProperty, FunctionalProperty):
-        domain = [Activity]
+        domain = [Activity | Course]
         range = [int]
         python_name = "required_capacity"
 
@@ -112,7 +118,7 @@ with onto:
         python_name = "start_hour"
 
     class HasYear(DataProperty, FunctionalProperty):
-        domain = [Student]
+        domain = [Student | Course | AcademicClass]
         range = [int]
         python_name = "has_year"
 
@@ -120,6 +126,10 @@ with onto:
         domain = [Student]
         range = [str]
         python_name = "has_class_code"
+    class HasSemester(DataProperty, FunctionalProperty):
+        domain = [Course]
+        range = [int]
+        python_name = "has_semester"
 
     # INFERRED CLASSES (First-Order Logic)
 
@@ -150,6 +160,16 @@ with onto:
 
 def save():
     onto.save(file=ONTOLOGY_FILE, format="rdfxml")
+
+def run_reasoner():
+    print("\n[System] Synchronizing reasoner...")
+    try:
+        sync_reasoner(onto, infer_property_values=True)
+        save()
+        print("[System] Reasoning complete. Inferred classes updated.")
+    except Exception as e:
+        print(f"[Error] Reasoning failed: {e}")
+        print("Ensure Java is installed and owlready2.JAVA_EXE is correctly set.")
 
 def get_room(name):
     return onto.search_one(type=Room, has_name=name)
@@ -197,14 +217,33 @@ def add_student(name, id_num, class_code, year, course_names):
     save()
     return True, f"Student {name} added."
 
-def add_course(name):
-    if onto.search_one(type=Course, has_name=name):
-        return False, f"Error: Course '{name}' already exists."
+def add_course(name, year, semester, capacity):
+    # Updated conjunction check: Name AND Year AND Semester
+    if onto.search_one(type=Course, has_name=name, has_year=year, has_semester=semester):
+        return False, f"Error: Course '{name}' (Year {year}, Sem {semester}) already exists."
+    
     with onto:
-        c = Course(name.replace(" ", "_"))
+        # Create a unique IRI including the semester
+        c = Course(f"{name.replace(' ', '_')}_Y{year}_S{semester}")
         c.has_name = name
+        c.has_year = year
+        c.has_semester = semester
+        c.required_capacity = capacity
     save()
-    return True, f"Course {name} added."
+    return True, f"Course {name} (Y{year}/S{semester}) added successfully."
+
+def add_academic_class(name, year):
+    # Conjunction check: verify if this class name and year already exist
+    if onto.search_one(type=AcademicClass, has_name=name, has_year=year):
+        return False, f"Error: Academic Class '{name}' for year {year} already exists."
+    
+    with onto:
+        # Create unique IRI
+        ac = AcademicClass(f"Class_{name.replace(' ', '_')}_{year}")
+        ac.has_name = name
+        ac.has_year = year
+    save() # Ensure persistence
+    return True, f"Academic Class {name} ({year}) added successfully."
 
 def clean_onto():
 
