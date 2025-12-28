@@ -123,8 +123,19 @@ class BookingAgent:
             new_b.has_end_time = end_t
             new_b.has_name = f"{b_type}: {course.has_name if course else 'Meeting'}"
             
-            if course:
-                new_b.for_activity = self.onto.Lecture() # Mapping to DEI Activity types
+            # Initialize relocation properties as None/False
+            new_b.is_relocated = False
+
+            if b_type == "Course":
+                # Mandatory feature: Lectures automatically require the room's projector
+                act = self.onto.Lecture()
+                if room.has_equipment:
+                    # Link the lecture specifically to this room's unique equipment
+                    act.requires_equipment = room.has_equipment
+                new_b.for_activity = act
+            else:
+                new_b.for_activity = self.onto.Activity()
+        save()
         return new_b
     
     def emergency_relocate(self, booking):

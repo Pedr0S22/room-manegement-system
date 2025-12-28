@@ -67,10 +67,10 @@ def populate_system():
     print("Running reasoner to verify inferred classes...")
     save()
     
-    # Check for anomalies immediately
-    attention_rooms = onto.search(type=RoomNeedsAttention)
-    if attention_rooms:
-        print(f"Warning: The following rooms already need attention: {attention_rooms}")
+    ## Check for anomalies immediately
+    #attention_rooms = onto.search(type=RoomNeedsAttention)
+    #if attention_rooms:
+    #    print(f"Warning: The following rooms already need attention: {attention_rooms}")
 
 if __name__ == "__main__":
     # Ensure the ontology is loaded

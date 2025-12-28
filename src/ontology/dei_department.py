@@ -109,11 +109,6 @@ with onto:
         range = [bool]
         python_name = "is_broken"
 
-    class AccumulatedUsage(DataProperty, FunctionalProperty):
-        domain = [Room]
-        range = [int]
-        python_name = "accumulated_usage"
-
     class StartHour(DataProperty, FunctionalProperty):
         domain = [RoomBooking]
         range = [int]
@@ -148,6 +143,21 @@ with onto:
         range = [Teacher]
         python_name = "booked_by"
 
+    class OriginalStartTime(DataProperty, FunctionalProperty):
+        domain = [RoomBooking]
+        range = [datetime.datetime]
+        python_name = "original_start_time"
+
+    class OriginalEndTime(DataProperty, FunctionalProperty):
+        domain = [RoomBooking]
+        range = [datetime.datetime]
+        python_name = "original_end_time"
+
+    class IsRelocated(DataProperty, FunctionalProperty):
+        domain = [RoomBooking]
+        range = [bool]
+        python_name = "is_relocated"
+
     # INFERRED CLASSES (First-Order Logic)
 
     class OverBookedRoom(Room):
@@ -155,9 +165,6 @@ with onto:
     
     class UnsuitableRoomBooking(RoomBooking):
         equivalent_to = [RoomBooking & ForActivity.some(Activity & RequiresEquipment.some(Equipment & IsBroken.value(True)))]
-
-    class RoomNeedsAttention(Room):
-        equivalent_to = [Room & AccumulatedUsage.some(ConstrainedDatatype(int, min_inclusive=21))]
 
     class AvailableRoom(Room):
         equivalent_to = [Room & Not(Inverse(BookedInRoom).some(RoomBooking))]
@@ -168,12 +175,7 @@ with onto:
     class LargeExamRoom(Room): # Creative: High capacity rooms for exams
         equivalent_to = [Room & HasCapacity.some(ConstrainedDatatype(int, min_inclusive=100))]
 
-    # --- INITIAL INDIVIDUALS ---
-    projector = Equipment("Projector")
-    projector.has_name = "Standard Projector"
-    projector.is_broken = False
-
-# --- VALIDATION & PERSISTENCE HELPER FUNCTIONS ---
+# Helper Functions to interact with ontology
 
 def save():
     with onto:
@@ -198,14 +200,19 @@ def add_room(name, capacity, has_proj):
         r = Room(name.replace(" ", "_"))
         r.has_name = name
         r.has_capacity = capacity
-        r.accumulated_usage = 0
-        if has_proj: r.has_equipment = [onto.Projector]
+        if has_proj:
+            # Create a unique projector instance for this specific room
+            proj = Equipment(f"Projector_{r.name}")
+            proj.has_name = f"Projector {name}"
+            proj.is_broken = False
+            r.has_equipment = [proj]
     save()
     return True, f"Room {name} added successfully."
 
 def add_teacher(name, id_num, course_names):
-    if get_person_by_id(id_num):
-        return False, f"Error: ID {id_num} already assigned to {get_person_by_id(id_num).has_name}."
+    prof = get_person_by_id(id_num)
+    if prof:
+        return False, f"Error: ID {id_num} already assigned to {prof.has_name}."
     with onto:
         t = Teacher(f"T_{id_num}")
         t.has_name = name
@@ -258,6 +265,35 @@ def add_academic_class(name, year):
         ac.has_year = year
     save() # Ensure persistence
     return True, f"Academic Class {name} ({year}) added successfully."
+
+def delete_booking(room, start, end, prof_id):
+    """Deletes a booking with Prof ID validation."""
+
+    prof = onto.search_one(type=Teacher, has_id=prof_id)
+
+    if prof:
+        booking = onto.search_one(
+            type=RoomBooking,
+            booked_in_room=room,
+            booked_by=prof,
+            has_start_time=start,
+            has_end_time=end
+        )
+    else:
+        return False, "Professor not found"
+        
+    if not booking:
+        return False, "Booking not found."
+    
+    # Validation: Only the prof that made the book can delete it
+    if booking.booked_by.has_id != prof_id:
+        return False, "Permission Denied: You are not the owner of this booking."
+    
+    # Remove the activity and the booking
+    destroy_entity(booking)
+
+    save()
+    return True, "Booking successfully deleted."
 
 def clean_onto():
 
