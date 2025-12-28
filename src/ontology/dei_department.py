@@ -47,6 +47,8 @@ with onto:
         pass
     class Lecture(Activity):
         pass
+    class Meeting(Activity):
+        pass
     class Exam(Activity):
         pass
     class MaintenanceActivity(Activity):
@@ -161,21 +163,26 @@ with onto:
     # INFERRED CLASSES (First-Order Logic)
 
     class OverBookedRoom(Room):
-        equivalent_to = [Room & Inverse(BookedInRoom).some(RoomBooking)] # Simplified
+        equivalent_to = [Room & Inverse(BookedInRoom).some(RoomBooking)]
     
-    class UnsuitableRoomBooking(RoomBooking):
-        equivalent_to = [RoomBooking & ForActivity.some(Activity & RequiresEquipment.some(Equipment & IsBroken.value(True)))]
+    class UnsuitableProjectorRoomBooking(RoomBooking):
+        equivalent_to = [RoomBooking & ForActivity.some(Lecture & RequiresEquipment.some(Equipment & IsBroken.value(True)))]
 
     class AvailableRoom(Room):
         equivalent_to = [Room & Not(Inverse(BookedInRoom).some(RoomBooking))]
 
-    class OverloadedTeacher(Teacher): # Creative: Teachers with more than 3 courses
-        equivalent_to = [Teacher & Teaches.min(4, Course)]
+    class PendingRelocationBooking(RoomBooking):
+        equivalent_to = [UnsuitableProjectorRoomBooking & IsRelocated.value(False)]
 
-    class LargeExamRoom(Room): # Creative: High capacity rooms for exams
-        equivalent_to = [Room & HasCapacity.some(ConstrainedDatatype(int, min_inclusive=100))]
+    class RelocatedBooking(RoomBooking):
+        equivalent_to = [RoomBooking & IsRelocated.value(True)]
+
+    class BrokenRoom(Room):
+        equivalent_to = [Room & HasEquipment.some(Equipment & IsBroken.value(True))]
+
 
 # Helper Functions to interact with ontology
+
 
 def save():
     with onto:
@@ -192,6 +199,12 @@ def get_room(name):
 
 def get_person_by_id(id_num):
     return onto.search_one(has_id=id_num)
+
+def get_maintenance_books():
+    return onto.search(type=RoomBooking, has_name="Maintenance")
+
+def get_class_by_name(class_name, ac_year):
+    return onto.search_one(type=AcademicClass, has_name=class_name, has_year=ac_year)
 
 def add_room(name, capacity, has_proj):
     if get_room(name):
@@ -232,6 +245,13 @@ def add_student(name, id_num, class_code, year, course_names):
         s.has_id = id_num
         s.has_class_code = class_code
         s.has_year = year
+
+        ac = onto.search_one(type=AcademicClass, has_name=class_code, has_year=year)
+        if ac:
+            s.belongs_to_class = ac
+        else:
+            print(f"[Warning] Academic Class '{class_code}' for year {year} not found. Link not created.")
+
         for c_name in course_names:
             course = onto.search_one(type=Course, has_name=c_name)
             if course: s.enrolled_in.append(course)

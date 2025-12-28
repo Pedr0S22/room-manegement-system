@@ -106,6 +106,8 @@ class BookingAgent:
 
     def _is_room_busy(self, room, start_t, end_t):
         """Conflict check against existing RoomBookings."""
+        if room in self.onto.AvailableRoom.instances():
+            return False # It is impossible for it to be busy
         bookings = self.onto.search(type=self.onto.RoomBooking, booked_in_room=room)
         for b in bookings:
             # Check for any temporal overlap
@@ -134,35 +136,6 @@ class BookingAgent:
                     act.requires_equipment = room.has_equipment
                 new_b.for_activity = act
             else:
-                new_b.for_activity = self.onto.Activity()
+                new_b.for_activity = self.onto.Meeting()
         save()
         return new_b
-    
-    def emergency_relocate(self, booking):
-        """Automatically moves a booking to a new room if the current one is unsuitable."""
-        print(f"[Agent 1] Initiating emergency relocation for {booking.has_name}...")
-        
-        # Calculate requirements
-        capacity = 0
-        if hasattr(booking, "for_course") and booking.for_course:
-            capacity = booking.for_course.required_capacity
-        
-        # Search for a new room for the same time slot
-        # Assuming the relocation is triggered because a projector is needed but broken
-        options = self.get_available_rooms(
-            capacity,
-            booking.has_start_time,
-            booking.has_end_time,
-            needs_projector=True
-        )
-
-        # Filter out the current broken room
-        options = [r for r in options if r != booking.booked_in_room]
-
-        if options:
-            new_room = options[0] # Smallest fit first
-            old_room_name = booking.booked_in_room.has_name
-            booking.booked_in_room = new_room
-            return True, f"Booking moved from {old_room_name} to {new_room.has_name}."
-        
-        return False, "No suitable alternative rooms available for this slot."

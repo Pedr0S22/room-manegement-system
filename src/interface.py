@@ -44,8 +44,9 @@ def management_menu():
         print("2. Teacher Management")
         print("3. Student Management")
         print("4. Course Management")
-        print("5. Class Management\n")
-        print("6. Clear All Data")
+        print("5. Class Management")
+        print("6. Check Overbooked Rooms\n")
+        print("7. Clear All Data")
         print("0. Back to Main Menu")
         
         choice = input("\nSelect: ")
@@ -54,7 +55,8 @@ def management_menu():
         elif choice == '3': student_mgmt()
         elif choice == '4': course_mgmt()
         elif choice == '5': class_mgmt()
-        elif choice == '6': clean_onto()
+        elif choice == '6': check_overbooked()
+        elif choice == '7': clean_onto()
         elif choice == '0': main_menu()
         else:
             print("Invalid option. Please try again.")
@@ -106,11 +108,6 @@ def room_mgmt():
                     print(f"Room: {r.has_name}")
                     print(f" - Capacity: {r.has_capacity}")
                     print(f" - Equipment: {equipment_str}")
-                    print(f" - Accumulated Usage: {r.accumulated_usage} hours")
-                    
-                    # Intelligence Hint: Highlight if it needs attention
-                    if r in onto.RoomNeedsAttention.instances():
-                        print("STATUS: Requires Maintenance/Cleaning")
                     
                     print("-" * 20)
         elif c == '0':
@@ -184,10 +181,6 @@ def teacher_mgmt():
                     print(f" - Name: {t.has_name}")
                     print(f" - Courses Taught: {', '.join(course_details) if course_details else 'None Assigned'}")
                     
-                    # Intelligence Hint: Check for Overloaded status (Inferred Class)
-                    if t in onto.OverloadedTeacher.instances():
-                        print(" ! STATUS: Overloaded (Teaches > 3 Courses)")
-                    
                     print("-" * 20)
         elif c == '0':
             return
@@ -217,20 +210,23 @@ def student_mgmt():
                 except ValueError:
                     print("Error: ID must be a valid number.")
 
-            # 3. Validate Class
-            cls = input("Class Code: ")
-            
-            # 4. Validate Year
+            # 3. Validate Class and year
             while True:
-                try:
-                    yr = int(input("Year: "))
-                    if yr < 4 or yr > 0:
-                        break
-                    print("Error: Year must be 1, 2 or 3.")
-                except ValueError:
-                    print("Error: Year must be a valid number.")
+                cls = input("Academic Class: ")
+                while True:
+                    try:
+                        yr = int(input("Academic Year: "))
+                        if yr < 4 or yr > 0:
+                            break
+                        print("Error: Year must be 1, 2 or 3.")
+                    except ValueError:
+                        print("Error: Academic Year must be a valid number.")
+                
+                academic_class = get_class_by_name(cls, yr)
+                if academic_class:
+                    break
 
-            # 5. Validate Courses
+            # 4. Validate Courses
             while True:
                 courses_raw = input("Courses (comma separated): ").split(",")
                 processed_courses = [c.strip().upper() for c in courses_raw if c.strip()]
@@ -254,9 +250,12 @@ def student_mgmt():
                 if valid_format:
                     courses = processed_courses
                     break
+                else:
+                    break
+            if not valid_format:
+                break
             _ , msg = add_student(name, id_num, cls, yr, [x.strip() for x in courses])
             print(msg)
-            student_mgmt()
         elif c == '2':
             students = list(onto.Student.instances())
             
@@ -369,9 +368,8 @@ def class_mgmt():
             if not classes:
                 print("\nNo academic classes registered.")
             else:
-                print("\n--- List of Academic Classes ---")
+                print("\n[List of Academic Classes]\n")
                 for ac in classes:
-                    # Find students belonging to this class using inverse search
                     # FOL: {s | Student(s) ^ belongs_to_class(s, ac)}
                     students = onto.search(type=Student, belongs_to_class=ac)
                     student_names = [s.has_name for s in students]
@@ -384,37 +382,47 @@ def class_mgmt():
         else:
             print("Invalid option. Please try again.")
 
-# ===============================================
-# TODO Verify if this is necessary
-# ===============================================
-def queries_menu():
+def check_overbooked():
+    """Queries the ontology for rooms that have at least one booking."""
+    print("\n[Overbooked Rooms Report]")
     
-    while True:
-        print("Nothing yet...")
-        choice = input("\nBack pressing 0: ")
-        if choice == '0':
-            break
+    # Get rooms that the ontology identifies as having bookings
+    potential_conflict_rooms = onto.OverBookedRoom.instances()
+    
+    conflict_found = False
 
-        print("\n--- Live Status & Queries ---")
-        print("1. List Available Rooms (Inferred)")
-        print("2. List Rooms Needing Attention (Agent 2 Trigger)")
-        print("3. Identify Unsuitable Bookings")
-        print("4. Back to Main Menu")
+    for room in potential_conflict_rooms:
+        # Get all bookings for this specific room
+        bookings = [b for b in onto.RoomBooking.instances() if b.booked_in_room == room]
         
-        choice = input("\nSelect an option: ")
-        if choice == '1':
-            rooms = onto.search(type=AvailableRoom)
-            print(f"Available Rooms: {[r.has_name for r in rooms]}")
-        #elif choice == '2':
-        #    rooms = onto.search(type=RoomNeedsAttention)
-        #    print(f"Rooms needing cleaning: {[r.has_name for r in rooms]}")
-        elif choice == '3':
-            bookings = onto.search(type=UnsuitableRoomBooking)
-            print(f"Conflicting/Unsuitable Bookings: {bookings}")
-        elif choice == '4':
-            break
-        else:
-            print("Invalid option. Please try again.")
+        # Sort bookings by start time for easier comparison
+        bookings.sort(key=lambda x: x.has_start_time)
+        
+        room_conflicts = []
+        
+        # Compare every pair of bookings in the room to find overlaps
+        for i in range(len(bookings)):
+            for j in range(i + 1, len(bookings)):
+                b1 = bookings[i]
+                b2 = bookings[j]
+                
+                # Overlap logic: (Start1 < End2) AND (Start2 < End1)
+                # Since these are datetime objects, this handles both same-day and time overlaps
+                if (b1.has_start_time < b2.has_end_time) and (b2.has_start_time < b1.has_end_time):
+                    room_conflicts.append((b1, b2))
+        
+        if room_conflicts:
+            conflict_found = True
+            print(f"\n[!] CONFLICT DETECTED in Room: {room.has_name}")
+            for b1, b2 in room_conflicts:
+                print(f"  Overlap found between:")
+                print(f"    - {b1.has_name} ({b1.has_start_time.strftime('%Y-%m-%d %H:%M')} to {b1.has_end_time.strftime('%H:%M')})")
+                print(f"    - {b2.has_name} ({b2.has_start_time.strftime('%Y-%m-%d %H:%M')} to {b2.has_end_time.strftime('%H:%M')})")
+
+    if not conflict_found:
+        print("No time-slot conflicts found. All room schedules are valid.")
+    
+    print("\n" + "-"*40)
 
 def booking_menu():
     while True:
@@ -541,12 +549,12 @@ def booking_menu():
             else:
                 if not slots[0]["suggestion"]:
                     print(f"\n[Room Management] Found {len(slots)} available slots:")
-                    sugestion = False
+                    suggestion = False
                 else:
                     print(f"\n[Room Management] No available slots found in that interval and period of time.\nFound {len(slots)} suggested slots:")
-                    sugestion = True
+                    suggestion = True
                 print("-" * 50)
-                if sugestion:
+                if suggestion:
                     samples = 10
                     if len(slots) > 10:
                         slots = random.sample(slots, samples)
@@ -597,13 +605,11 @@ def booking_menu():
                 if not sorted_bookings:
                     print("No bookings found for this room.")
                 else:
-                    # 2. Display with Numbers (1, 2, 3...)
+                    # Display with Numbers
                     for idx, b in enumerate(sorted_bookings, start=1):
                         start = b.has_start_time.strftime('%H:%M')
                         end = b.has_end_time.strftime('%H:%M')
                         print(f" {idx}. {start} - {end} | {b.has_name} (by {b.booked_by.has_name})")
-
-                    print("-" * 50)
                 print("="*50)
 
         elif choice == '3':
@@ -666,7 +672,9 @@ def maintenance_menu():
     while True:
         print("\n[System Maintenance]\n")
         print("1. Report Broken Equipment in Room")
-        print("2. View Changes/Rebooked Classes (Query)")
+        print("2. Rebooked Bookings (Maintenance)")
+        print("3. Check Maintenance Bookings")
+        print("4. Report Fixed Equipment in a Room")
         print("0. Back")
         
         choice = input("\nSelect: ")
@@ -674,31 +682,63 @@ def maintenance_menu():
             r_name = input("Enter Room Name: ")
             room = get_room(r_name)
             if room and room.has_equipment:
-                # 1. Report the problem
+                # Report the problem~
+                eq_projector = room.has_equipment[0]
+                if eq_projector.is_broken:
+                    while True:
+                        rebook = input("There exists a Maintenance Booking for this Room. Do you want to rebook? (y/n): ").lower().strip()
+                        if rebook in ['y', 'n']:
+                            if rebook == 'y':
+                                maintenance_bookings = [
+                                    b for b in onto.search(type=RoomBooking, booked_in_room=room)
+                                    if isinstance(b.for_activity, MaintenanceActivity)
+                                ]
+                                for b in maintenance_bookings:
+                                    print(f"Removing maintenance booking from schedule: {b.has_start_time.strftime('%Y-%m-%d %H:%M')}")
+                                    destroy_entity(b)
+                                break
+                            else:
+                                return
+                        print("Please enter only 'y' for yes or 'n' for no.")
+
                 for eq in room.has_equipment:
                     eq.is_broken = True
                 print(f"Status: {r_name} projector reported as broken.")
                 
-                # 2. Schedule Maintenance (1.1 & 1.2)
-                slots = agent2.get_maintenance_slots(room)
-                print("\nPossible Maintenance Slots (Randomly generated):")
-                for i, s in enumerate(slots, 1):
-                    print(f"{i}. {s['start'].strftime('%Y-%m-%d %H:%M')}")
+                # Schedule Maintenance
+                maintenance_slots = agent2.get_maintenance_slots(room)
+                print("\nPossible Maintenance Slots:")
+                for idx, m in enumerate(maintenance_slots, start=1):
+                    start = m['start'].strftime('%H:%M')
+                    end = m['end'].strftime('%H:%M')
+                    slot_date = m['date']
+                    print(f" {idx}. {slot_date} | {start} - {end}")
                 
-                sel = int(input("Choose a slot (Mandatory): ")) - 1
-                chosen = slots[sel]
-                
-                # 3. Book Maintenance (1.3)
-                agent2.add_maintenance_booking(room, chosen["start"], chosen['end'])
-                
-                # 4. Trigger Auto-Relocation (2.1)
-                count = agent2.auto_relocate_affected(room)
-                print(f"Success! Maintenance scheduled and {count} affected classes rebooked.")
-                save()
+                while True:
+                    sel = input(f"Select a slot (1-{len(maintenance_slots)} - Mandatory): ")
+                    
+                    if sel.isdigit():
+                        idx = int(sel)
+                        if 1 <= idx <= len(maintenance_slots):
+                            chosen = maintenance_slots[idx-1]
+                            # Book Maintenance
+                            agent2.create_maintenance_booking(room, chosen["start"], chosen['end'])
+                            print(f"\nSuccess: {chosen['room'].has_name} Maintenance booked for {chosen['date']} at {chosen['duration'][0]} - {chosen['duration'][1]}.")
+                            break
+                    print(f"Invalid choice. Pick a number between 1 and {len(maintenance_slots)}.")
+
+                # Trigger Auto-Relocation
+                affected = agent2.auto_relocate_affected(room)
+                print(f"Success! Maintenance scheduled and {len(affected)} affected classes rebooked.\n These books where affected: {affected}")
+            else:
+                if not room:
+                    print("Room not found.")
+                else:
+                    print("This Room has no Equipment.")
 
         elif choice == '2':
-            print("\n--- Rebooked Classes Audit ---")
-            relocated = [b for b in onto.RoomBooking.instances() if b.is_relocated]
+            print("\nRebooked Bookings (Maintenance)\n")
+            relocated = onto.RelocatedBooking.instances()
             
             if not relocated:
                 print("No rebooked classes found.")
@@ -709,16 +749,73 @@ def maintenance_menu():
                     print(f"- {b.has_name}: Now in {b.booked_in_room.has_name} at {b.has_start_time} {status}")
 
             # Validation and manual re-adjustment (2.2 part 2)
-            p_id = int(input("\nEnter Prof ID to manually adjust one of your rebooked classes (or 0): "))
+            p_id = int(input("\nEnter Prof ID to manually adjust one of your rebooked classes or '0' to return): "))
             if p_id != 0:
                 # Use Agent 1's flow to re-schedule a specific booking if the user isn't happy
+                # TODO
                 pass
+        elif choice == '3':
+            maintenance_slots = get_maintenance_books()
+            if maintenance_slots:
+                print(f"DEI MAINTENANCE SCHEDULE")
+                print('='*50)
+                for idx, book in enumerate(maintenance_slots, start=1):
+                    start = book.has_start_time.strftime('%H:%M')
+                    end = book.has_end_time.strftime('%H:%M')
+                    slot_date = book.has_start_time.strftime("%Y-%m-%d")
+                    room_m = book.booked_in_room.has_name
+                    print(f" Room {room_m} | {slot_date} | {start} - {end}")
+                    if idx < len(maintenance_slots):
+                        print(" " + "-"*48)
+                print('='*50)
+            else:
+                print("There is no Maintenance Bookings.")
+        elif choice == '4':
+            r_name = input("Enter the Room Name: ").strip()
+            room = get_room(r_name)
+            
+            if not room:
+                print(f"Error: Room '{r_name}' not found.")
+                return
+
+            # 1. Validate that equipment is broken
+            broken_eq = [eq for eq in room.has_equipment if eq.is_broken]
+            if not broken_eq:
+                print(f"Error: Room '{r_name}' has no reported broken equipment.")
+                return
+
+            # 2. Validate that a maintenance booking exists for this room
+            # We look for bookings where the activity is a MaintenanceActivity
+            maintenance_bookings = [
+                b for b in onto.search(type=RoomBooking, booked_in_room=room)
+                if isinstance(b.for_activity, MaintenanceActivity)
+            ]
+            
+            if not maintenance_bookings:
+                print(f"Error: No maintenance booking found for Room '{r_name}'. Repair cannot be finalized without a record.")
+                return
+
+            # 3. Perform the fix: Switch is_broken to False
+            for eq in broken_eq:
+                eq.is_broken = False
+                print(f"[System] - {eq.has_name} is now functional.")
+
+            # 4. Delete the maintenance bookings associated with the room
+            for b in maintenance_bookings:
+                print(f"[System] - Removing maintenance booking from schedule: {b.has_start_time.strftime('%Y-%m-%d %H:%M')}")
+                destroy_entity(b)
+            
+            # Save the changes to the .owl file
+            save()
+            print("\nRoom status updated and schedule cleared successfully.")
         elif choice == '0':
             return
+        else:
+            print("Invalid option. Please try again.")
         
 def planning_menu():
     """Triggers the PDDL Automated Planners."""
-    print("\n--- Semester Planning (PDDL) ---")
+    print("\n [Semester Planning]\n")
     print("1. Generate Weekly Class Template")
     print("2. Generate Exam Epoch Schedule")
     print("3. Back to Main Menu")

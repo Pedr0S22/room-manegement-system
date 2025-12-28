@@ -10,10 +10,8 @@ owlready2.JAVA_EXE = "java"
 
 if os.path.exists(ONTOLOGY_FILE):
     onto = get_ontology(ONTOLOGY_FILE).load()
-    print(f"Loaded existing ontology from {ONTOLOGY_FILE}")
 else:
-    onto = get_ontology("http://example.org/dei_room_management.owl")
-    print("Created new ontology.")
+    onto = get_ontology(ONTOLOGY_FILE)
 
 def populate_system():
     print("=== Initializing DEI Data Population ===\n")
@@ -66,11 +64,6 @@ def populate_system():
     print("\nData population complete.")
     print("Running reasoner to verify inferred classes...")
     save()
-    
-    ## Check for anomalies immediately
-    #attention_rooms = onto.search(type=RoomNeedsAttention)
-    #if attention_rooms:
-    #    print(f"Warning: The following rooms already need attention: {attention_rooms}")
 
 if __name__ == "__main__":
     # Ensure the ontology is loaded
