@@ -596,10 +596,11 @@ def booking_menu():
                 # Fetch and sort bookings
                 bookings = [b for b in onto.search(type=RoomBooking, booked_in_room=room) if b.has_start_time.date() == target_date]
                 sorted_bookings = sorted(bookings, key=lambda x: x.has_start_time)
+                has_projector = "Yes" if room.has_equipment[0] else "No"
 
                 print(f"\n" + "="*50)
                 print(f"DEI SCHEDULE [{target_date}]: {room.has_name}")
-                print(f"Capacity: {room.has_capacity} | Projector: {'Yes' if onto.Projector in room.has_equipment else 'No'}")
+                print(f"Capacity: {room.has_capacity} | Projector: {has_projector}")
                 print("="*50)
 
                 if not sorted_bookings:

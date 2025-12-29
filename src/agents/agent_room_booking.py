@@ -32,8 +32,8 @@ class BookingAgent:
         suitable = [r for r in all_rooms if r.has_capacity >= capacity_needed]
         
         if needs_projector:
-            projector_obj = self.onto.search_one(has_name="Standard Projector")
-            suitable = [r for r in suitable if projector_obj in r.has_equipment]
+        # Check if the room has any equipment (projector)
+            suitable = [r for r in suitable if r.has_equipment]
 
         available = []
         for room in suitable:
