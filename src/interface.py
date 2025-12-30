@@ -91,7 +91,7 @@ def room_mgmt():
                     proj = (proj_input == 'y')
                     break
                 print("Error: Please enter only 'y' for yes or 'n' for no.")
-            _ , msg = add_room(name, cap, proj)
+            _ , msg = agent.add_room(name, cap, proj)
             print(msg)
         elif c == '2':
             rooms = list(onto.Room.instances())
@@ -164,7 +164,7 @@ def teacher_mgmt():
                 if valid_format:
                     courses = processed_courses
                     break
-            _ , msg = add_teacher(name, id_num, courses)
+            _ , msg = agent.add_teacher(name, id_num, courses)
             print(msg)
         elif c == '2':
             teachers = list(onto.Teacher.instances())
@@ -222,7 +222,7 @@ def student_mgmt():
                     except ValueError:
                         print("Error: Academic Year must be a valid number.")
                 
-                academic_class = get_class_by_name(cls, yr)
+                academic_class = agent.get_class_by_name(cls, yr)
                 if academic_class:
                     break
 
@@ -254,7 +254,7 @@ def student_mgmt():
                     break
             if not valid_format:
                 break
-            _ , msg = add_student(name, id_num, cls, yr, [x.strip() for x in courses])
+            _ , msg = agent.add_student(name, id_num, cls, yr, [x.strip() for x in courses])
             print(msg)
         elif c == '2':
             students = list(onto.Student.instances())
@@ -324,7 +324,7 @@ def course_mgmt():
                 except ValueError:
                     print("Error: Number of Students must be a valid number.")
 
-            _ , msg = add_course(name, year, semester, capacity)
+            _ , msg = agent.add_course(name, year, semester, capacity)
             print(msg)
         elif c == '2':
             courses = list(onto.Course.instances())
@@ -361,7 +361,7 @@ def class_mgmt():
                 except ValueError:
                     print("Error: Year must be a number.")
 
-            _ , msg = add_academic_class(name, year)
+            _ , msg = agent.add_academic_class(name, year)
             print(msg)
         elif c == '2':
             classes = list(onto.AcademicClass.instances())
@@ -551,13 +551,15 @@ def booking_menu():
                     print(f"\n[Room Management] Found {len(slots)} available slots:")
                     suggestion = False
                 else:
-                    print(f"\n[Room Management] No available slots found in that interval and period of time.\nFound {len(slots)} suggested slots:")
+                    print(f"\n[Room Management] No available slots found in that interval and period of time.")
                     suggestion = True
                 print("-" * 50)
                 if suggestion:
                     samples = 10
                     if len(slots) > 10:
                         slots = random.sample(slots, samples)
+
+                print(F"\nFound {len(slots)} suggested slots:")
                 for i, s in enumerate(slots, start=1):
                     print(f" {i}. {s['date']} | {s['duration'][0]} - {s['duration'][1]} | Room: {s['room'].has_name} (Cap: {s['room'].has_capacity})")
                 print("-" * 50)
@@ -580,7 +582,7 @@ def booking_menu():
 
         elif choice == '2':
             room_name = input("Enter Room Name to check: ")
-            room = get_room(room_name)
+            room = agent.get_room(room_name)
 
             while True:
                 day_str = input("Enter Date (YYYY-MM-DD): ")
@@ -618,7 +620,7 @@ def booking_menu():
             # 1. Validate Room
             while True:
                 room_name = input("Enter Room Name: ")
-                room_name = get_room(room_name)
+                room_name = agent.get_room(room_name)
                 if not room_name:
                     print(f"Error: Room '{room_name}' does not exist.")
                 else: break
@@ -663,7 +665,7 @@ def booking_menu():
             dt_start_iso = dt_start.isoformat(timespec='milliseconds')
             dt_end_iso = dt_end.isoformat(timespec='milliseconds')
 
-            _ , msg = delete_booking(room_name, dt_start_iso, dt_end_iso, prof_id)
+            _ , msg = agent.delete_booking(room_name, dt_start_iso, dt_end_iso, prof_id)
             print(msg)
         elif choice == '0':
             return
@@ -683,7 +685,7 @@ def maintenance_menu():
         choice = input("\nSelect: ")
         if choice == '1':
             r_name = input("Enter Room Name: ")
-            room = get_room(r_name)
+            room = agent.get_room(r_name)
             if room and room.has_equipment:
                 # Report the problem~
                 eq_projector = room.has_equipment[0]
@@ -767,7 +769,7 @@ def maintenance_menu():
                 p_id = int(input("\nEnter Prof ID to manually adjust one of your rebooked classes (or '0' to return): "))
                 if p_id == 0:
                     continue
-                prof = get_person_by_id(p_id)
+                prof = agent.get_person_by_id(p_id)
                 if not prof or not isinstance(prof, Teacher):
                     print(f"Error: Professor with ID {p_id} not found.")
                     continue
@@ -843,7 +845,7 @@ def maintenance_menu():
                     save()
                     print(f"\nSuccess! Booking re-adjusted to {chosen['room'].has_name} at {chosen['duration'][0]}.")
         elif choice == '3':
-            maintenance_slots = get_maintenance_books()
+            maintenance_slots = agent.get_maintenance_books()
             if maintenance_slots:
                 print(f"DEI MAINTENANCE SCHEDULE")
                 print('='*50)
@@ -860,7 +862,7 @@ def maintenance_menu():
                 print("There is no Maintenance Bookings.")
         elif choice == '4':
             r_name = input("Enter the Room Name: ").strip()
-            room = get_room(r_name)
+            room = agent.get_room(r_name)
             
             if not room:
                 print(f"Error: Room '{r_name}' not found.")
