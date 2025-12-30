@@ -33,7 +33,10 @@ class BookingAgent:
         
         if needs_projector:
         # Check if the room has any equipment (projector)
-            suitable = [r for r in suitable if r.has_equipment]
+            suitable = [
+                r for r in suitable
+                if r.has_equipment and not any(eq.is_broken for eq in r.has_equipment)
+            ]
 
         available = []
         for room in suitable:
@@ -115,7 +118,7 @@ class BookingAgent:
                 return True
         return False
 
-    def create_booking(self, prof, room, start_t, end_t, b_type, course=None):
+    def create_booking(self, prof, room, start_t, end_t, b_type, capacity, needs_proj=False, course=None):
         with self.onto:
             b_id = f"Booking_{int(start_t.timestamp())}_{room.name}"
             new_b = self.onto.RoomBooking(b_id)
@@ -129,13 +132,18 @@ class BookingAgent:
             new_b.is_relocated = False
 
             if b_type == "Course":
-                # Mandatory feature: Lectures automatically require the room's projector
                 act = self.onto.Lecture()
+                # Courses always need the projector if the room has one
                 if room.has_equipment:
-                    # Link the lecture specifically to this room's unique equipment
                     act.requires_equipment = room.has_equipment
-                new_b.for_activity = act
             else:
-                new_b.for_activity = self.onto.Meeting()
+                act = self.onto.Meeting()
+                # Meetings only link equipment if the teacher explicitly requested it
+                if needs_proj and room.has_equipment:
+                    act.requires_equipment = room.has_equipment
+            
+            # Universal capacity assignment
+            act.required_capacity = capacity
+            new_b.for_activity = act
         save()
         return new_b

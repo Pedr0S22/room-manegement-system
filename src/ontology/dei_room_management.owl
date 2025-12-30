@@ -284,6 +284,51 @@
       </owl:intersectionOf>
     </owl:Class>
   </owl:equivalentClass>
+  <owl:equivalentClass>
+    <owl:Class>
+      <owl:intersectionOf rdf:parseType="Collection">
+        <rdf:Description rdf:about="#Room"/>
+        <owl:Restriction>
+          <owl:onProperty>
+            <rdf:Description>
+              <owl:inverseOf rdf:resource="#BookedInRoom"/>
+            </rdf:Description>
+          </owl:onProperty>
+          <owl:someValuesFrom rdf:resource="#RoomBooking"/>
+        </owl:Restriction>
+      </owl:intersectionOf>
+    </owl:Class>
+  </owl:equivalentClass>
+  <owl:equivalentClass>
+    <owl:Class>
+      <owl:intersectionOf rdf:parseType="Collection">
+        <rdf:Description rdf:about="#Room"/>
+        <owl:Restriction>
+          <owl:onProperty>
+            <rdf:Description>
+              <owl:inverseOf rdf:resource="#BookedInRoom"/>
+            </rdf:Description>
+          </owl:onProperty>
+          <owl:someValuesFrom rdf:resource="#RoomBooking"/>
+        </owl:Restriction>
+      </owl:intersectionOf>
+    </owl:Class>
+  </owl:equivalentClass>
+  <owl:equivalentClass>
+    <owl:Class>
+      <owl:intersectionOf rdf:parseType="Collection">
+        <rdf:Description rdf:about="#Room"/>
+        <owl:Restriction>
+          <owl:onProperty>
+            <rdf:Description>
+              <owl:inverseOf rdf:resource="#BookedInRoom"/>
+            </rdf:Description>
+          </owl:onProperty>
+          <owl:someValuesFrom rdf:resource="#RoomBooking"/>
+        </owl:Restriction>
+      </owl:intersectionOf>
+    </owl:Class>
+  </owl:equivalentClass>
 </owl:Class>
 
 <owl:Class rdf:about="#UnsuitableProjectorRoomBooking">
@@ -297,7 +342,7 @@
           <owl:someValuesFrom>
             <owl:Class>
               <owl:intersectionOf rdf:parseType="Collection">
-                <rdf:Description rdf:about="#Lecture"/>
+                <rdf:Description rdf:about="#Activity"/>
                 <owl:Restriction>
                   <owl:onProperty rdf:resource="#RequiresEquipment"/>
                   <owl:someValuesFrom>
@@ -380,22 +425,63 @@
       </owl:intersectionOf>
     </owl:Class>
   </owl:equivalentClass>
-</owl:Class>
-
-<owl:Class rdf:about="#PendingRelocationBooking">
-  <rdfs:subClassOf rdf:resource="#RoomBooking"/>
   <owl:equivalentClass>
     <owl:Class>
       <owl:intersectionOf rdf:parseType="Collection">
-        <rdf:Description rdf:about="#UnsuitableProjectorRoomBooking"/>
-        <owl:Restriction>
-          <owl:onProperty rdf:resource="#IsRelocated"/>
-          <owl:hasValue rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</owl:hasValue>
-        </owl:Restriction>
+        <rdf:Description rdf:about="#Room"/>
+        <owl:Class>
+          <owl:complementOf>
+            <owl:Restriction>
+              <owl:onProperty>
+                <rdf:Description>
+                  <owl:inverseOf rdf:resource="#BookedInRoom"/>
+                </rdf:Description>
+              </owl:onProperty>
+              <owl:someValuesFrom rdf:resource="#RoomBooking"/>
+            </owl:Restriction>
+          </owl:complementOf>
+        </owl:Class>
       </owl:intersectionOf>
     </owl:Class>
   </owl:equivalentClass>
-  <rdfs:subClassOf rdf:resource="#UnsuitableProjectorRoomBooking"/>
+  <owl:equivalentClass>
+    <owl:Class>
+      <owl:intersectionOf rdf:parseType="Collection">
+        <rdf:Description rdf:about="#Room"/>
+        <owl:Class>
+          <owl:complementOf>
+            <owl:Restriction>
+              <owl:onProperty>
+                <rdf:Description>
+                  <owl:inverseOf rdf:resource="#BookedInRoom"/>
+                </rdf:Description>
+              </owl:onProperty>
+              <owl:someValuesFrom rdf:resource="#RoomBooking"/>
+            </owl:Restriction>
+          </owl:complementOf>
+        </owl:Class>
+      </owl:intersectionOf>
+    </owl:Class>
+  </owl:equivalentClass>
+  <owl:equivalentClass>
+    <owl:Class>
+      <owl:intersectionOf rdf:parseType="Collection">
+        <rdf:Description rdf:about="#Room"/>
+        <owl:Class>
+          <owl:complementOf>
+            <owl:Restriction>
+              <owl:onProperty>
+                <rdf:Description>
+                  <owl:inverseOf rdf:resource="#BookedInRoom"/>
+                </rdf:Description>
+              </owl:onProperty>
+              <owl:someValuesFrom rdf:resource="#RoomBooking"/>
+            </owl:Restriction>
+          </owl:complementOf>
+        </owl:Class>
+      </owl:intersectionOf>
+    </owl:Class>
+  </owl:equivalentClass>
 </owl:Class>
 
 <owl:Class rdf:about="#RelocatedBooking">
@@ -567,6 +653,7 @@
 <owl:NamedIndividual rdf:about="#G.5.1">
   <rdf:type rdf:resource="#Room"/>
   <HasEquipment rdf:resource="#Projector_G.5.1"/>
+  <rdf:type rdf:resource="#OverBookedRoom"/>
   <HasName rdf:datatype="http://www.w3.org/2001/XMLSchema#string">G.5.1</HasName>
   <HasCapacity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">120</HasCapacity>
 </owl:NamedIndividual>
@@ -671,6 +758,7 @@
 <owl:NamedIndividual rdf:about="#E.4.3">
   <rdf:type rdf:resource="#Room"/>
   <HasEquipment rdf:resource="#Projector_E.4.3"/>
+  <rdf:type rdf:resource="#OverBookedRoom"/>
   <HasName rdf:datatype="http://www.w3.org/2001/XMLSchema#string">E.4.3</HasName>
   <HasCapacity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">50</HasCapacity>
 </owl:NamedIndividual>
@@ -839,12 +927,95 @@
   <HasYear rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">3</HasYear>
 </owl:NamedIndividual>
 
+<owl:NamedIndividual rdf:about="#lecture1">
+  <rdf:type rdf:resource="#Lecture"/>
+  <RequiresEquipment rdf:resource="#Projector_A.5.1"/>
+  <RequiredCapacity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">60</RequiredCapacity>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#Booking_1767265200_A.5.1">
+  <rdf:type rdf:resource="#RoomBooking"/>
+  <BookedInRoom rdf:resource="#A.5.1"/>
+  <BookedBy rdf:resource="#T_102"/>
+  <ForActivity rdf:resource="#meeting1"/>
+  <HasStartTime rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2026-01-01T11:00:00.000</HasStartTime>
+  <HasEndTime rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2026-01-01T12:00:00.000</HasEndTime>
+  <HasName rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Meeting: Meeting</HasName>
+  <IsRelocated rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</IsRelocated>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#meeting1">
+  <rdf:type rdf:resource="#Meeting"/>
+  <RequiredCapacity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">8</RequiredCapacity>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#Booking_1767268800_A.5.1">
+  <rdf:type rdf:resource="#RoomBooking"/>
+  <BookedBy rdf:resource="#T_103"/>
+  <ForActivity rdf:resource="#meeting2"/>
+  <rdf:type rdf:resource="#UnsuitableProjectorRoomBooking"/>
+  <BookedInRoom rdf:resource="#E.4.3"/>
+  <rdf:type rdf:resource="#RelocatedBooking"/>
+  <HasStartTime rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2026-01-01T12:00:00.000</HasStartTime>
+  <HasEndTime rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2026-01-01T13:00:00.000</HasEndTime>
+  <HasName rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Meeting: Meeting</HasName>
+  <OriginalStartTime rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2026-01-01T12:00:00.000</OriginalStartTime>
+  <OriginalEndTime rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2026-01-01T13:00:00.000</OriginalEndTime>
+  <IsRelocated rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">true</IsRelocated>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#meeting2">
+  <rdf:type rdf:resource="#Meeting"/>
+  <RequiresEquipment rdf:resource="#Projector_A.5.1"/>
+  <RequiredCapacity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">13</RequiredCapacity>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#maintenanceactivity1">
+  <rdf:type rdf:resource="#MaintenanceActivity"/>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#Booking_1767344400_G.5.1">
+  <rdf:type rdf:resource="#RoomBooking"/>
+  <BookedInRoom rdf:resource="#G.5.1"/>
+  <BookedBy rdf:resource="#T_102"/>
+  <ForActivity rdf:resource="#lecture2"/>
+  <HasStartTime rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2026-01-02T09:00:00.000</HasStartTime>
+  <HasEndTime rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2026-01-02T11:00:00.000</HasEndTime>
+  <HasName rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Course: CRP</HasName>
+  <IsRelocated rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</IsRelocated>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#lecture2">
+  <rdf:type rdf:resource="#Lecture"/>
+  <RequiresEquipment rdf:resource="#Projector_G.5.1"/>
+  <RequiredCapacity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">60</RequiredCapacity>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#Booking_1767258000_A.5.1">
+  <rdf:type rdf:resource="#RoomBooking"/>
+  <BookedInRoom rdf:resource="#A.5.1"/>
+  <BookedBy rdf:resource="#T_101"/>
+  <ForActivity rdf:resource="#meeting3"/>
+  <HasStartTime rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2026-01-01T09:00:00.000</HasStartTime>
+  <HasEndTime rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2026-01-01T10:00:00.000</HasEndTime>
+  <HasName rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Meeting: Meeting</HasName>
+  <IsRelocated rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</IsRelocated>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#meeting3">
+  <rdf:type rdf:resource="#Meeting"/>
+  <RequiredCapacity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">15</RequiredCapacity>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#maintenanceactivity2">
+  <rdf:type rdf:resource="#MaintenanceActivity"/>
+</owl:NamedIndividual>
+
 <owl:NamedIndividual rdf:about="#T.1">
   <rdf:type rdf:resource="#Room"/>
   <HasEquipment rdf:resource="#Projector_T.1"/>
-  <rdf:type rdf:resource="#OverBookedRoom"/>
   <HasName rdf:datatype="http://www.w3.org/2001/XMLSchema#string">T.1</HasName>
-  <HasCapacity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">40</HasCapacity>
+  <HasCapacity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">20</HasCapacity>
 </owl:NamedIndividual>
 
 <owl:NamedIndividual rdf:about="#Projector_T.1">
@@ -853,52 +1024,8 @@
   <IsBroken rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</IsBroken>
 </owl:NamedIndividual>
 
-<owl:NamedIndividual rdf:about="#T_999">
-  <rdf:type rdf:resource="#Teacher"/>
-  <Teaches rdf:resource="#CM_Y3_S2"/>
-  <Teaches rdf:resource="#AED_Y2_S1"/>
-  <HasName rdf:datatype="http://www.w3.org/2001/XMLSchema#string">T_TEST1</HasName>
-  <HasId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">999</HasId>
-</owl:NamedIndividual>
-
-<owl:NamedIndividual rdf:about="#S_987">
-  <rdf:type rdf:resource="#Student"/>
-  <BelongsToClass rdf:resource="#Class_LEI_3"/>
-  <EnrolledIn rdf:resource="#SD_Y3_S1"/>
-  <EnrolledIn rdf:resource="#EA_Y3_S2"/>
-  <HasName rdf:datatype="http://www.w3.org/2001/XMLSchema#string">S_TEST1</HasName>
-  <HasId rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">987</HasId>
-  <HasClassCode rdf:datatype="http://www.w3.org/2001/XMLSchema#string">LEI</HasClassCode>
-  <HasYear rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">3</HasYear>
-</owl:NamedIndividual>
-
-<owl:NamedIndividual rdf:about="#TEST_Y3_S1">
-  <rdf:type rdf:resource="#Course"/>
-  <HasName rdf:datatype="http://www.w3.org/2001/XMLSchema#string">TEST</HasName>
-  <HasYear rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">3</HasYear>
-  <HasSemester rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">1</HasSemester>
-  <RequiredCapacity rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">42</RequiredCapacity>
-</owl:NamedIndividual>
-
-<owl:NamedIndividual rdf:about="#Booking_1767258000_A.5.1">
-  <rdf:type rdf:resource="#RoomBooking"/>
-  <BookedInRoom rdf:resource="#A.5.1"/>
-  <BookedBy rdf:resource="#T_102"/>
-  <ForActivity rdf:resource="#lecture1"/>
-  <HasStartTime rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2026-01-01T09:00:00.000</HasStartTime>
-  <HasEndTime rdf:datatype="http://www.w3.org/2001/XMLSchema#dateTime">2026-01-01T11:00:00.000</HasEndTime>
-  <HasName rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Course: CRP</HasName>
-  <IsRelocated rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</IsRelocated>
-</owl:NamedIndividual>
-
-<owl:NamedIndividual rdf:about="#lecture1">
-  <rdf:type rdf:resource="#Lecture"/>
-  <RequiresEquipment rdf:resource="#Projector_A.5.1"/>
-</owl:NamedIndividual>
-
-<owl:NamedIndividual rdf:about="#meeting1">
-  <rdf:type rdf:resource="#Meeting"/>
-  <rdf:type rdf:resource="#Activity"/>
+<owl:NamedIndividual rdf:about="#maintenanceactivity3">
+  <rdf:type rdf:resource="#MaintenanceActivity"/>
 </owl:NamedIndividual>
 
 

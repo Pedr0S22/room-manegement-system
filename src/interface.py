@@ -99,7 +99,7 @@ def room_mgmt():
             if not rooms:
                 print("\nNo rooms found in the department.")
             else:
-                print("\n--- List of Registered Rooms ---")
+                print("\n[List of Registered Rooms]\n")
                 for r in rooms:
                     # Check for equipment
                     eq_list = [e.has_name for e in r.has_equipment]
@@ -172,7 +172,7 @@ def teacher_mgmt():
             if not teachers:
                 print("\nNo teachers found in the department.")
             else:
-                print("\n--- List of Registered Teachers ---")
+                print("\n[List of Registered Teachers]\n")
                 for t in teachers:
                     # Extract course details (Name and Year/Semester)
                     course_details = [f"{c.has_name} (Y{c.has_year}S{c.has_semester})" for c in t.teaches]
@@ -331,7 +331,7 @@ def course_mgmt():
             if not courses:
                 print("\nNo courses registered in the system.")
             else:
-                print("\n--- List of Courses ---")
+                print("\n[List of Courses]\n")
                 for crs in courses:
                     print(f"- {crs.has_name} (Year: {crs.has_year}, Sem: {crs.has_semester}, Cap: {crs.required_capacity})")
         elif c == '0':
@@ -573,7 +573,7 @@ def booking_menu():
                         if 1 <= idx <= len(slots):
                             chosen = slots[idx-1]
                             agent.create_booking(prof, chosen['room'], chosen['start'], chosen['end'],
-                                                "Course" if is_course else "Meeting", course_obj)
+                                                "Course" if is_course else "Meeting", cap_needed, needs_proj, course_obj)
                             print(f"\nSuccess: {chosen['room'].has_name} booked for {chosen['date']} at {chosen['duration'][0]} - {chosen['duration'][1]}.")
                             break
                     print(f"Invalid choice. Pick a number between 1 and {len(slots)}.")
@@ -596,7 +596,7 @@ def booking_menu():
                 # Fetch and sort bookings
                 bookings = [b for b in onto.search(type=RoomBooking, booked_in_room=room) if b.has_start_time.date() == target_date]
                 sorted_bookings = sorted(bookings, key=lambda x: x.has_start_time)
-                has_projector = "Yes" if room.has_equipment[0] else "No"
+                has_projector = "Yes" if room.has_equipment else "No"
 
                 print(f"\n" + "="*50)
                 print(f"DEI SCHEDULE [{target_date}]: {room.has_name}")
@@ -610,7 +610,8 @@ def booking_menu():
                     for idx, b in enumerate(sorted_bookings, start=1):
                         start = b.has_start_time.strftime('%H:%M')
                         end = b.has_end_time.strftime('%H:%M')
-                        print(f" {idx}. {start} - {end} | {b.has_name} (by {b.booked_by.has_name})")
+                        booker_name = b.booked_by.has_name if b.booked_by else "System/Maintenance"
+                        print(f" {idx}. {start} - {end} | {b.has_name} (by {booker_name})")
                 print("="*50)
 
         elif choice == '3':
@@ -676,6 +677,7 @@ def maintenance_menu():
         print("2. Rebooked Bookings (Maintenance)")
         print("3. Check Maintenance Bookings")
         print("4. Report Fixed Equipment in a Room")
+        print("5. Check Room Broken Equipment (Projector)")
         print("0. Back")
         
         choice = input("\nSelect: ")
@@ -704,10 +706,21 @@ def maintenance_menu():
 
                 for eq in room.has_equipment:
                     eq.is_broken = True
+                save()
                 print(f"Status: {r_name} projector reported as broken.")
+
+                # Trigger Auto-Relocation
+                affected = agent2.auto_relocate_affected(room)
+                affected_names = [b.has_name for b in affected]
+                print(f"Success! Maintenance scheduled and {len(affected_names)} affected classes rebooked.\n These books where affected: {affected_names}")
                 
                 # Schedule Maintenance
                 maintenance_slots = agent2.get_maintenance_slots(room)
+
+                if not maintenance_slots:
+                    print("Error: No available gaps found for maintenance.")
+                    return
+                
                 print("\nPossible Maintenance Slots:")
                 for idx, m in enumerate(maintenance_slots, start=1):
                     start = m['start'].strftime('%H:%M')
@@ -724,13 +737,10 @@ def maintenance_menu():
                             chosen = maintenance_slots[idx-1]
                             # Book Maintenance
                             agent2.create_maintenance_booking(room, chosen["start"], chosen['end'])
+                            save()
                             print(f"\nSuccess: {chosen['room'].has_name} Maintenance booked for {chosen['date']} at {chosen['duration'][0]} - {chosen['duration'][1]}.")
                             break
                     print(f"Invalid choice. Pick a number between 1 and {len(maintenance_slots)}.")
-
-                # Trigger Auto-Relocation
-                affected = agent2.auto_relocate_affected(room)
-                print(f"Success! Maintenance scheduled and {len(affected)} affected classes rebooked.\n These books where affected: {affected}")
             else:
                 if not room:
                     print("Room not found.")
@@ -742,19 +752,96 @@ def maintenance_menu():
             relocated = onto.RelocatedBooking.instances()
             
             if not relocated:
-                print("No rebooked classes found.")
+                print("No rebooked classes found in the system.")
+                continue
             else:
+                print("-"*40)
                 for b in relocated:
                     changed_time = b.has_start_time != b.original_start_time
-                    status = " [TIME/DAY CHANGED]" if changed_time else " [ROOM ONLY]"
-                    print(f"- {b.has_name}: Now in {b.booked_in_room.has_name} at {b.has_start_time} {status}")
+                    status = " [TIME/DAY AND ROOM CHANGED]" if changed_time else " [ROOM CHANGED]"
+                    print(f"- {b.has_name}: Now in {b.booked_in_room.has_name} at {b.has_start_time.strftime('%Y-%m-%d %H:%M')} {status}")
+                print("-"*40)
 
-            # Validation and manual re-adjustment (2.2 part 2)
-            p_id = int(input("\nEnter Prof ID to manually adjust one of your rebooked classes or '0' to return): "))
-            if p_id != 0:
-                # Use Agent 1's flow to re-schedule a specific booking if the user isn't happy
-                # TODO
-                pass
+            # Validation and manual re-adjustment
+            try:
+                p_id = int(input("\nEnter Prof ID to manually adjust one of your rebooked classes (or '0' to return): "))
+                if p_id == 0:
+                    continue
+                prof = get_person_by_id(p_id)
+                if not prof or not isinstance(prof, Teacher):
+                    print(f"Error: Professor with ID {p_id} not found.")
+                    continue
+            except ValueError:
+                print("Invalid ID format.")
+                continue
+
+            # Filter rebooked classes belonging specifically to this professor
+            my_relocated = [b for b in relocated if b.booked_by == prof]
+            
+            if not my_relocated:
+                print(f"No relocated bookings found for {prof.has_name}.")
+                continue
+
+            print(f"\nSelect a booking to re-adjust:")
+            for idx, b in enumerate(my_relocated, start=1):
+                print(f"{idx}. {b.has_name} (Current: {b.booked_in_room.has_name} at {b.has_start_time.strftime('%H:%M')})")
+            
+            try:
+                sel_idx = int(input("Choice: ")) - 1
+                if not (0 <= sel_idx < len(my_relocated)):
+                    print("Invalid selection.")
+                    continue
+                old_booking = my_relocated[sel_idx]
+            except ValueError:
+                print("Invalid input.")
+                continue
+
+            # MANUAL REBOOKING FLOW
+            print(f"\nAdjusting schedule for: {old_booking.has_name}")
+            
+            # 1. Determine requirements from the old booking
+            is_course = isinstance(old_booking.for_activity, Lecture)
+            cap_needed = old_booking.for_activity.required_capacity or 0
+            needs_proj = True if old_booking.for_activity.requires_equipment else False
+            course_obj = onto.search_one(type=Course, has_name=old_booking.has_name.split(": ")[1]) if is_course else None
+
+            # 2. Get new timing preferences
+            print("Enter your new preferred timing:")
+            try:
+                new_date_str = input("New Date (YYYY-MM-DD): ")
+                new_date = datetime.strptime(new_date_str, "%Y-%m-%d").date()
+                new_hour = int(input("New Start Hour (9-19): "))
+                new_dur = int(input("Duration (Hours): "))
+            except ValueError:
+                print("Invalid format entered. Adjustment cancelled.")
+                continue
+
+            # 3. Search for alternative slots via Agent 1
+            slots = agent.get_available_slots_in_interval(cap_needed, new_date, new_date, new_hour, new_dur, needs_proj)
+            
+            if not slots:
+                print("\nNo available slots found for those requirements.")
+            else:
+                print(f"\nAvailable Slots for {new_date}:")
+                for i, s in enumerate(slots, start=1):
+                    print(f" {i}. {s['duration'][0]} - {s['duration'][1]} | Room: {s['room'].has_name} (Cap: {s['room'].has_capacity})")
+                
+                sel = input(f"\nSelect a new slot (1-{len(slots)}) or '0' to cancel: ")
+                if sel.isdigit() and int(sel) > 0:
+                    chosen = slots[int(sel)-1]
+                    
+                    # 4. FINAL REBOOKING STEP: Delete old relocated booking and create the new one
+                    print(f"[System] Removing old relocation...")
+                    destroy_entity(old_booking) # Direct deletion of the problematic booking
+                    
+                    print(f"[System] Creating new manual booking...")
+                    agent.create_booking(
+                        prof, chosen['room'], chosen['start'], chosen['end'],
+                        "Course" if is_course else "Meeting", cap_needed, needs_proj, course_obj
+                    )
+                    
+                    save()
+                    print(f"\nSuccess! Booking re-adjusted to {chosen['room'].has_name} at {chosen['duration'][0]}.")
         elif choice == '3':
             maintenance_slots = get_maintenance_books()
             if maintenance_slots:
@@ -801,6 +888,9 @@ def maintenance_menu():
                 eq.is_broken = False
                 print(f"[System] - {eq.has_name} is now functional.")
 
+            if onto.BrokenRoom in room.is_a:
+                room.is_a.remove(onto.BrokenRoom)
+
             # 4. Delete the maintenance bookings associated with the room
             for b in maintenance_bookings:
                 print(f"[System] - Removing maintenance booking from schedule: {b.has_start_time.strftime('%Y-%m-%d %H:%M')}")
@@ -809,6 +899,20 @@ def maintenance_menu():
             # Save the changes to the .owl file
             save()
             print("\nRoom status updated and schedule cleared successfully.")
+        elif choice == '5':
+            broken_rooms = onto.BrokenRoom.instances()
+    
+            if not broken_rooms:
+                print("All room equipment is currently functional. No repairs needed.")
+            else:
+                print(f"Found {len(broken_rooms)} room(s) with reported equipment failure:")
+                for r in broken_rooms:
+                    # Find the specific broken items in this room
+                    broken_items = [eq.has_name for eq in r.has_equipment if eq.is_broken]
+                    items_str = ", ".join(broken_items)
+                    
+                    print(f"- Room: {r.has_name} | Status: BROKEN | Affected Equipment: {items_str}")
+                print("-" * 30)
         elif choice == '0':
             return
         else:

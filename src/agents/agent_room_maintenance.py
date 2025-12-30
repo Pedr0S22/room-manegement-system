@@ -85,14 +85,18 @@ class MaintenanceAgent:
             m_book.has_end_time = end_t
             m_book.for_activity = MaintenanceActivity()
             m_book.has_name = "Maintenance"
-        save()
         return m_book
 
     def auto_relocate_affected(self, room):
-        
-        # Find bookings flagged by the reasoner as Unsuitable for this specific room
-        affected = [b for b in self.onto.PendingRelocationBooking.instances()
-                if b.booked_in_room == room]
+        """
+        Orchestrates the relocation of all bookings in a broken room
+        using the 'UnsuitableProjectorRoomBooking' inferred class.
+        """
+        # Find bookings flagged by the reasoner as Unsuitable/Pending for this specific room
+        affected = [
+            b for b in self.onto.UnsuitableProjectorRoomBooking.instances()
+            if b.booked_in_room == room and b.is_relocated == False
+        ]
         
         relocated_list = []
         for b in affected:
@@ -101,40 +105,69 @@ class MaintenanceAgent:
                 b.original_start_time = b.has_start_time
                 b.original_end_time = b.has_end_time
 
-            # 2. Attempt relocation using Agent 1's logic
+            # Attempt relocation
             success, msg = self.emergency_relocate(b)
             if success:
                 b.is_relocated = True
                 relocated_list.append(b)
+                print(f"[Maintenance Agent] {msg}")
+            else:
+                print(f"[Maintenance Agent] Warning: Could not relocate {b.has_name}. {msg}")
         save()
         return relocated_list
     
     def emergency_relocate(self, booking):
-        """Automatically moves a booking to a new room if the current one is unsuitable."""
-        print(f"[Agent 1] Initiating emergency relocation for {booking.has_name}...")
+        """
+        Finds a new room for a specific booking.
+        Priority 1: Same Day, Same Time Slot.
+        Priority 2: Same Day, Alternative Time Slot.
+        """
+        print(f"[Agent 2] Initiating emergency relocation for {booking.has_name}...")
+
+        # Retrieve capacity and equipment needs from the activity
+        needed_cap = booking.for_activity.required_capacity or 0
+        # Determine if a projector is needed by checking if the activity has a requirement linked
+        needs_proj = True if booking.for_activity.requires_equipment else False
         
-        # Calculate requirements
-        capacity = 0
-        if hasattr(booking, "for_course") and booking.for_course:
-            capacity = booking.for_course.required_capacity
-        
-        # Search for a new room for the same time slot
-        # Assuming the relocation is triggered because a projector is needed but broken
-        options = self.get_available_rooms(
-            capacity,
+        # PHASE 1: Same Day, Same Time
+        options = self.booking_agent.get_available_rooms(
+            needed_cap,
             booking.has_start_time,
             booking.has_end_time,
-            needs_projector=True
+            needs_projector=needs_proj
         )
-
-        # Filter out the current broken room
+        
+        # Exclude the current broken room from possible results
         options = [r for r in options if r != booking.booked_in_room]
 
         if options:
-            new_room = options[0] # Smallest fit first
-            old_room_name = booking.booked_in_room.has_name
+            new_room = options[0] # Take the smallest suitable room
+            old_name = booking.booked_in_room.has_name
             booking.booked_in_room = new_room
-            save()
-            return True, f"Booking moved from {old_room_name} to {new_room.has_name}."
+            return True, f"Relocated {booking.has_name} from {old_name} to {new_room.has_name} (Same Slot)."
+
+        # PHASE 2: Same Day, Different Time (Fallback)
+        target_date = booking.has_start_time.date()
+        # Calculate duration in hours
+        duration = int((booking.has_end_time - booking.has_start_time).total_seconds() / 3600)
         
-        return False, "No suitable alternative rooms available for this slot."
+        # Search for any available 2h slots on the same day (ignoring the original start hour)
+        alt_slots = self.booking_agent.get_available_slots_in_interval(
+            needed_cap, target_date, target_date, 9, duration, needs_proj
+        )
+        
+        # Filter out suggestions that match the original broken room
+        alt_slots = [s for s in alt_slots if s['room'] != booking.booked_in_room]
+
+        if alt_slots:
+            # Pick the first available alternative slot found by Agent 1
+            chosen = alt_slots[0]
+            old_name = booking.booked_in_room.has_name
+            
+            booking.booked_in_room = chosen['room']
+            booking.has_start_time = chosen['start']
+            booking.has_end_time = chosen['end']
+            
+            return True, f"Relocated {booking.has_name} from {old_name} to {chosen['room'].has_name} at {chosen['duration'][0]} (New Slot)."
+
+        return False, "No alternative rooms or time slots available on this day."

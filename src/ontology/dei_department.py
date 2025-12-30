@@ -166,13 +166,11 @@ with onto:
         equivalent_to = [Room & Inverse(BookedInRoom).some(RoomBooking)]
     
     class UnsuitableProjectorRoomBooking(RoomBooking):
-        equivalent_to = [RoomBooking & ForActivity.some(Lecture & RequiresEquipment.some(Equipment & IsBroken.value(True)))]
+        equivalent_to = [RoomBooking & ForActivity.some(Activity & RequiresEquipment.some(Equipment & IsBroken.value(True)))]
+
 
     class AvailableRoom(Room):
         equivalent_to = [Room & Not(Inverse(BookedInRoom).some(RoomBooking))]
-
-    class PendingRelocationBooking(RoomBooking):
-        equivalent_to = [UnsuitableProjectorRoomBooking & IsRelocated.value(False)]
 
     class RelocatedBooking(RoomBooking):
         equivalent_to = [RoomBooking & IsRelocated.value(True)]
